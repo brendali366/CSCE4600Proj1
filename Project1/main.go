@@ -32,8 +32,10 @@ func main() {
 	FCFSSchedule(os.Stdout, "First-come, first-serve", processes)
 
 	SJFSchedule(os.Stdout, "Shortest-job-first", processes)
+
 	//
-	//SJFPrioritySchedule(os.Stdout, "Priority", processes)
+	SJFPrioritySchedule(os.Stdout, "Priority", processes)
+
 	//
 	RRSchedule(os.Stdout, "Round-robin", processes)
 }
@@ -129,7 +131,60 @@ func FCFSSchedule(w io.Writer, title string, processes []Process) {
 	outputSchedule(w, schedule, aveWait, aveTurnaround, aveThroughput)
 }
 
-func SJFPrioritySchedule(w io.Writer, title string, processes []Process) {}
+func SJFPrioritySchedule(w io.Writer, title string, processes []Process) {
+
+	var (
+		serviceTime     int64
+		totalWait       float64
+		totalTurnaround float64
+		lastCompletion  float64
+		waitingTime     int64
+		schedule        = make([][]string, len(processes))
+		gantt           = make([]TimeSlice, 0)
+	)
+	for i := range processes {
+		if processes[i].Priority > 0 {
+			waitingTime = processes[i].BurstDuration - waitingTime
+		}
+
+		totalWait += float64(waitingTime)
+
+		start := waitingTime + processes[i].Priority
+
+		turnaround := processes[i].Priority + waitingTime
+		totalTurnaround += float64(turnaround)
+
+		completion := processes[i].BurstDuration + processes[i].Priority + waitingTime
+		lastCompletion = float64(completion)
+
+		schedule[i] = []string{
+			fmt.Sprint(processes[i].ProcessID),
+			fmt.Sprint(processes[i].Priority),
+			fmt.Sprint(processes[i].BurstDuration),
+			fmt.Sprint(processes[i].ArrivalTime),
+			fmt.Sprint(waitingTime),
+			fmt.Sprint(turnaround),
+			fmt.Sprint(completion),
+		}
+		serviceTime += processes[i].BurstDuration
+
+		gantt = append(gantt, TimeSlice{
+			PID:   processes[i].ProcessID,
+			Start: start,
+			Stop:  serviceTime,
+		})
+	}
+
+	count := float64(len(processes))
+	aveWait := totalWait / count
+	aveTurnaround := totalTurnaround / count
+	aveThroughput := count / lastCompletion
+
+	outputTitle(w, title)
+	outputGantt(w, gantt)
+	outputSchedule(w, schedule, aveWait, aveTurnaround, aveThroughput)
+
+}
 
 func SJFSchedule(w io.Writer, title string, processes []Process) {
 	var (
